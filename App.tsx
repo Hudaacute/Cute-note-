@@ -9,8 +9,7 @@ import {
   Sparkles,
   Palette,
   BookOpen,
-  Save,
-  Trash2
+  Save
 } from 'lucide-react';
 import Notebook from './components/Notebook';
 import DraggableElement from './components/DraggableElement';
@@ -42,30 +41,45 @@ const createNewNotebook = (name: string = 'My New Notebook'): NotebookSession =>
 });
 
 const App: React.FC = () => {
-  const [notebooks, setNotebooks] = useState<NotebookSession[]>([]);
-  const [activeNotebookId, setActiveNotebookId] = useState<string | null>(null);
+  // Initialize state directly from localStorage to prevent blank first frame
+  const [notebooks, setNotebooks] = useState<NotebookSession[]>(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        return parsed.length > 0 ? parsed : [createNewNotebook('My First Notebook')];
+      } catch (e) {
+        return [createNewNotebook('My First Notebook')];
+      }
+    }
+    return [createNewNotebook('My First Notebook')];
+  });
+
+  const [activeNotebookId, setActiveNotebookId] = useState<string | null>(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        return parsed.length > 0 ? parsed[0].id : null;
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
+
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [isPolishing, setIsPolishing] = useState(false);
   const [isThemeEditorOpen, setIsThemeEditorOpen] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
+  // Sync active ID if it becomes null somehow
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        setNotebooks(parsed);
-        if (parsed.length > 0) setActiveNotebookId(parsed[0].id);
-      } catch (e) {
-        console.error("Failed to parse stored notebooks", e);
-      }
-    } else {
-      const initial = createNewNotebook('My First Notebook');
-      setNotebooks([initial]);
-      setActiveNotebookId(initial.id);
+    if (!activeNotebookId && notebooks.length > 0) {
+      setActiveNotebookId(notebooks[0].id);
     }
-  }, []);
+  }, [activeNotebookId, notebooks]);
 
   const activeNotebook = notebooks.find(nb => nb.id === activeNotebookId) || notebooks[0];
 
@@ -96,14 +110,16 @@ const App: React.FC = () => {
 
   const handleDeleteNotebook = (id: string) => {
     const updated = notebooks.filter(nb => nb.id !== id);
+    let nextId = activeNotebookId;
     if (updated.length === 0) {
       const fresh = createNewNotebook();
       setNotebooks([fresh]);
-      setActiveNotebookId(fresh.id);
+      nextId = fresh.id;
     } else {
       setNotebooks(updated);
-      if (activeNotebookId === id) setActiveNotebookId(updated[0].id);
+      if (activeNotebookId === id) nextId = updated[0].id;
     }
+    setActiveNotebookId(nextId);
     saveToStorage(updated);
   };
 
@@ -188,7 +204,7 @@ const App: React.FC = () => {
     }
   };
 
-  if (!activeNotebook) return null;
+  if (!activeNotebook) return <div className="min-h-screen bg-[#fff1f2] flex items-center justify-center text-pink-300">Loading your memories...</div>;
 
   return (
     <div className="min-h-screen relative p-4 md:p-8 flex flex-col items-center overflow-x-hidden">
@@ -212,7 +228,7 @@ const App: React.FC = () => {
           title="See previous notes"
         >
           <BookOpen size={20} />
-          <span className="whitespace-nowrap">My Notebooks</span>
+          <span className="whitespace-nowrap">My Library</span>
         </button>
 
         <div className="h-6 w-px bg-pink-200 mx-1 flex-shrink-0" />
@@ -287,7 +303,6 @@ const App: React.FC = () => {
 
       {/* Workspace */}
       <div className="relative w-full max-w-6xl flex flex-col items-center min-h-[800px]">
-        {/* Notebook */}
         <Notebook 
           page={activeNotebook.pages[currentPageIndex]} 
           theme={activeNotebook.theme}
@@ -312,13 +327,11 @@ const App: React.FC = () => {
       <footer className="mt-12 text-pink-400 font-medium flex flex-col items-center gap-2 opacity-60">
         <div className="flex items-center gap-2">
           <Heart size={16} fill="currentColor" />
-          <span>Currently Editing: {activeNotebook.name}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] uppercase tracking-widest">Personal Notebook System</span>
-          <span className="w-1 h-1 bg-pink-300 rounded-full" />
+          <span className="text-[11px] font-bold">Editing: {activeNotebook.name}</span>
+          <span className="w-1 h-1 bg-pink-300 rounded-full mx-1" />
           <span className="text-[11px] font-semibold text-pink-500">Created by Huda</span>
         </div>
+        <div className="text-[9px] uppercase tracking-widest font-bold">Personal Aesthetic Journal</div>
       </footer>
     </div>
   );
