@@ -1,0 +1,7 @@
+{
+  "name": "Cute notes",
+  "description": "A cute, aesthetic notebook-themed app with draggable photos, sticky notes, and multi-page writing support in a soft pastel pink theme.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
